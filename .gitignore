@@ -1,0 +1,6 @@
+*.class
+.project
+.classpath
+.metadata
+.settings
+.recommenders
