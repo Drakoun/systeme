@@ -1,6 +1,7 @@
 package fr.unice.miage.sd.tinydfs.main;
 
 import fr.unice.miage.sd.tinydfs.nodes.Master;
+import fr.unice.miage.sd.tinydfs.nodes.Slave;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.rmi.AlreadyBoundException;
@@ -15,6 +16,8 @@ public class MasterMain extends UnicastRemoteObject implements Master {
     
     private String dfsRootFolder;
     private int nbSlaves;
+    private Slave leftSlave;
+    private Slave rightSlave;
     
     // Usage: java fr.unice.miage.sd.tinydfs.main.MasterMain storage_service_name dfs_root_folder nb_slaves
     public static void main(String[] args) throws RemoteException,
@@ -35,7 +38,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
             param[0] = storageServiceName;
             param[1] = ".";
             System.out.println("Master : Création des " + nbSlaves + " slaves");
-            for (int i = 1; i < nbSlaves+1; i++) {
+            for (int i = 2; i < nbSlaves+2; i++) {
                 param[2] = i + "";
                 SlaveMain.main(param);
             }
