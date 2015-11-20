@@ -29,7 +29,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
             // Create master and register it
             int rmiRegistryPort = 1099;
             Registry registry = LocateRegistry.createRegistry(rmiRegistryPort);
-            System.out.println("Master : RMI registry listening on port " + rmiRegistryPort);
+            System.out.println("aaMaster : RMI registry listening on port " + rmiRegistryPort);
             
             MasterMain masterMain = new MasterMain(dfsRootFolder,nbSlaves);
             registry.bind(storageServiceName, masterMain);
