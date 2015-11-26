@@ -19,7 +19,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
     private int nbSlaves;
     private Slave leftSlave;
     private Slave rightSlave;
-    
+    //essai
     // Usage: java fr.unice.miage.sd.tinydfs.main.MasterMain storage_service_name dfs_root_folder nb_slaves
     public static void main(String[] args) throws RemoteException,
                 AlreadyBoundException, NotBoundException, MalformedURLException, InterruptedException {
