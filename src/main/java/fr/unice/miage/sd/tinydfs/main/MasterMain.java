@@ -1,9 +1,11 @@
 package fr.unice.miage.sd.tinydfs.main;
 
-import fr.unice.miage.sd.tinydfs.nodes.Master;
-import fr.unice.miage.sd.tinydfs.nodes.Slave;
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -11,6 +13,12 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import fr.unice.miage.sd.tinydfs.nodes.Master;
+import fr.unice.miage.sd.tinydfs.nodes.Slave;
 
 
 public class MasterMain extends UnicastRemoteObject implements Master {
@@ -19,7 +27,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
     private int nbSlaves;
     private Slave leftSlave;
     private Slave rightSlave;
-    //essai
+    
     // Usage: java fr.unice.miage.sd.tinydfs.main.MasterMain storage_service_name dfs_root_folder nb_slaves
     public static void main(String[] args) throws RemoteException,
                 AlreadyBoundException, NotBoundException, MalformedURLException, InterruptedException {
@@ -34,7 +42,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
             
             MasterMain masterMain = new MasterMain(dfsRootFolder,nbSlaves);
             registry.bind(storageServiceName, masterMain);
-            /*
+            
             // A retirer avant le rendu, executer par le code python
             String[] param = new String[3];
             param[0] = "localhost";
@@ -43,7 +51,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
             for (int i = 0; i < nbSlaves; i++) {
                 param[2] = i + "";
                 SlaveMain.main(param);
-            }*/
+            }
             
             System.out.println("Master : En attente des slaves");
             boolean slavePret = false;
@@ -112,17 +120,56 @@ public class MasterMain extends UnicastRemoteObject implements Master {
     
     @Override
     public void saveFile(File file) throws RemoteException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    	Path path = Paths.get(file.getAbsolutePath());
+		try {
+			byte[] contenu = Files.readAllBytes(path);
+			saveBytes(file.getName(), contenu);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
     }
 
     @Override
     public void saveBytes(String filename, byte[] fileContent) throws RemoteException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    	/* Principe:
+    	 * On crée deux listes de byte[] : une pour le leftSlave et une pour le rightSlave.
+    	 * On divise le tableau fileContent en 'nbSlaves' sous-tableaux.
+    	 * La moitié des sous-tableaux sera affectée au leftSlave, l'autre moitié au rightSlave.*/
+    	
+    	List<byte[]> leftList = new ArrayList<byte[]>();
+    	List<byte[]> rightList = new ArrayList<byte[]>();
+
+		int start = 0;
+		int end;
+		//Définir la taille de base d'un sous-tableau 
+		int bytesParPart = (int)Math.ceil((float)fileContent.length/nbSlaves);
+		
+		//Compléter la liste gauche
+		while (start < fileContent.length/2) {
+			end = Math.min(fileContent.length/2, start + bytesParPart);
+			leftList.add(Arrays.copyOfRange(fileContent, start, end));
+			start += bytesParPart;
+		}
+		
+		//Compléter la liste droite
+		start = fileContent.length/2;
+		while (start < fileContent.length) {	
+			end = Math.min(fileContent.length, start + bytesParPart);
+			rightList.add(Arrays.copyOfRange(fileContent,start, end));
+			start += bytesParPart;
+		}
+    	
+		//Affecter les deux listes aux slaves correspondants
+    	leftSlave.subSave(filename + leftSlave.getId(), leftList);
+    	rightSlave.subSave(filename + rightSlave.getId(), rightList);
     }
 
     @Override
     public File retrieveFile(String filename) throws RemoteException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    	List<byte[]> listeReconst = new ArrayList<byte[]>();
+    	
+        return null;
     }
 
     @Override
