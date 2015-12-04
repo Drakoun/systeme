@@ -1,7 +1,9 @@
 package fr.unice.miage.sd.tinydfs.main;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,12 +23,14 @@ import fr.unice.miage.sd.tinydfs.nodes.Master;
 import fr.unice.miage.sd.tinydfs.nodes.Slave;
 
 
-public class MasterMain extends UnicastRemoteObject implements Master {
+public class MasterMain extends UnicastRemoteObject implements Master, Serializable {
     
     private String dfsRootFolder;
     private int nbSlaves;
     private Slave leftSlave;
     private Slave rightSlave;
+    private List<byte[]> leftList = new ArrayList<byte[]>();
+    private List<byte[]> rightList = new ArrayList<byte[]>();
     
     // Usage: java fr.unice.miage.sd.tinydfs.main.MasterMain storage_service_name dfs_root_folder nb_slaves
     public static void main(String[] args) throws RemoteException,
@@ -44,14 +48,14 @@ public class MasterMain extends UnicastRemoteObject implements Master {
             registry.bind(storageServiceName, masterMain);
             
             // A retirer avant le rendu, executer par le code python
-            String[] param = new String[3];
-            param[0] = "localhost";
-            param[1] = ".";
-            System.out.println("Master : Création des " + nbSlaves + " slaves");
-            for (int i = 0; i < nbSlaves; i++) {
-                param[2] = i + "";
-                SlaveMain.main(param);
-            }
+//            String[] param = new String[3];
+//            param[0] = "localhost";
+//            param[1] = ".";
+//            System.out.println("Master : Création des " + nbSlaves + " slaves");
+//            for (int i = 0; i < nbSlaves; i++) {
+//                param[2] = i + "";
+//                SlaveMain.main(param);
+//            }
             
             System.out.println("Master : En attente des slaves");
             boolean slavePret = false;
@@ -79,7 +83,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
                 //System.out.println("Master : fils gauche : " + gauche.getId());
                 
                 int i = 2;
-                while ((2 * i) < nbSlaves) {
+                while ((2 * i) <= nbSlaves) {
                     Slave filsGauche = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + (2*i));
                     Slave filsDroit = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + ((2*i) + 1));
                     Slave noeud = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + i);
@@ -92,6 +96,10 @@ public class MasterMain extends UnicastRemoteObject implements Master {
             else {
                 System.out.println("Master : Création de l'arbre binaire complet échoué. Le nombre de Slave ne permet pas de le faire.");
             }
+            
+            File file = new File ("C:\\Users\\Dragos\\Workspace\\SysDis\\systeme\\src\\test\\resources\\textual-sample");
+            masterMain.saveFile(file);
+            masterMain.retrieveFile(file.getName());
     }
 
     public MasterMain(String dfsRootFolder, int nbSlaves) throws RemoteException {
@@ -136,13 +144,14 @@ public class MasterMain extends UnicastRemoteObject implements Master {
     	 * On crée deux listes de byte[] : une pour le leftSlave et une pour le rightSlave.
     	 * On divise le tableau fileContent en 'nbSlaves' sous-tableaux.
     	 * La moitié des sous-tableaux sera affectée au leftSlave, l'autre moitié au rightSlave.*/
-    	
-    	List<byte[]> leftList = new ArrayList<byte[]>();
-    	List<byte[]> rightList = new ArrayList<byte[]>();
 
 		int start = 0;
 		int end;
-		//Définir la taille de base d'un sous-tableau 
+		
+		/* Définir la taille de base d'un sous-tableau 
+		 * La méthode Math.ceil permet de récuperer la valeur entière immédiate supérieure à un nb qui n'est pas entier
+		 * Cela permet une répartition plus équitable des bytes, si le nombre total de byte n'est pas divisible par le nbSlaves 
+		 */		
 		int bytesParPart = (int)Math.ceil((float)fileContent.length/nbSlaves);
 		
 		//Compléter la liste gauche
@@ -151,6 +160,7 @@ public class MasterMain extends UnicastRemoteObject implements Master {
 			leftList.add(Arrays.copyOfRange(fileContent, start, end));
 			start += bytesParPart;
 		}
+		System.out.println("leftList : " + leftList);
 		
 		//Compléter la liste droite
 		start = fileContent.length/2;
@@ -159,22 +169,34 @@ public class MasterMain extends UnicastRemoteObject implements Master {
 			rightList.add(Arrays.copyOfRange(fileContent,start, end));
 			start += bytesParPart;
 		}
+		System.out.println("rightList : " + rightList);
     	
 		//Affecter les deux listes aux slaves correspondants
-    	leftSlave.subSave(filename + leftSlave.getId(), leftList);
-    	rightSlave.subSave(filename + rightSlave.getId(), rightList);
+    	leftSlave.subSave(filename, leftList);
+    	rightSlave.subSave(filename, rightList);
     }
 
     @Override
     public File retrieveFile(String filename) throws RemoteException {
-    	List<byte[]> listeReconst = new ArrayList<byte[]>();
     	
-        return null;
+    	if (retrieveBytes(filename) != null) {
+		    try {
+			    FileOutputStream fileOuputStream = new FileOutputStream(filename); 
+				fileOuputStream.write(retrieveBytes(filename));
+				fileOuputStream.close();
+				File resultat = new File (filename);
+				return resultat;
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+    	}
+	    return null;
+        
     }
 
     @Override
     public byte[] retrieveBytes(String filename) throws RemoteException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+
+    	return null;
     }
-	
 }
