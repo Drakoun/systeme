@@ -199,10 +199,10 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
     public byte[] retrieveBytes(String filename) throws RemoteException {
     	List<byte[]> listeReconst = new ArrayList<byte[]>();
         if (leftSlave != null) {
-        	listeReconst.addAll(leftSlave.subRetrieve(filename + leftSlave.getId()));
+        	listeReconst.addAll(leftSlave.subRetrieve(filename));
         }
         if (rightSlave != null) {
-        	listeReconst.addAll(rightSlave.subRetrieve(filename + rightSlave.getId()));
+        	listeReconst.addAll(rightSlave.subRetrieve(filename));
         }
         
     	int totalBytes = 0;
