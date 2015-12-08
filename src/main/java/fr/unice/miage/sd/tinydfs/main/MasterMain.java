@@ -48,14 +48,14 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
             registry.bind(storageServiceName, masterMain);
             
             // A retirer avant le rendu, executer par le code python
-//            String[] param = new String[3];
-//            param[0] = "localhost";
-//            param[1] = ".";
-//            System.out.println("Master : Création des " + nbSlaves + " slaves");
-//            for (int i = 0; i < nbSlaves; i++) {
-//                param[2] = i + "";
-//                SlaveMain.main(param);
-//            }
+            String[] param = new String[3];
+            param[0] = "localhost";
+            param[1] = ".";
+            System.out.println("Master : Création des " + nbSlaves + " slaves");
+            for (int i = 0; i < nbSlaves; i++) {
+                param[2] = i + "";
+                SlaveMain.main(param);
+	           }
             
             System.out.println("Master : En attente des slaves");
             boolean slavePret = false;
@@ -97,9 +97,12 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
                 System.out.println("Master : Création de l'arbre binaire complet échoué. Le nombre de Slave ne permet pas de le faire.");
             }
             
-            File file = new File ("C:\\Users\\Dragos\\Workspace\\SysDis\\systeme\\src\\test\\resources\\textual-sample");
+            File file = new File ("/Users/rimelamrani/Documents/JAVA/workspace/ProjetSys/systeme/src/test/resources/textual-sample");
+            
             masterMain.saveFile(file);
+            System.out.println(file.getName());
             masterMain.retrieveFile(file.getName());
+           
     }
 
     public MasterMain(String dfsRootFolder, int nbSlaves) throws RemoteException {
@@ -178,25 +181,43 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 
     @Override
     public File retrieveFile(String filename) throws RemoteException {
-    	
-    	if (retrieveBytes(filename) != null) {
-		    try {
-			    FileOutputStream fileOuputStream = new FileOutputStream(filename); 
-				fileOuputStream.write(retrieveBytes(filename));
-				fileOuputStream.close();
-				File resultat = new File (filename);
-				return resultat;
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-    	}
+	    try {
+		    FileOutputStream fileOuputStream = new FileOutputStream(filename, true); 
+			fileOuputStream.write(retrieveBytes(filename));
+			fileOuputStream.close();
+			File resultat = new File (filename);
+			return resultat;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	    return null;
         
     }
 
     @Override
     public byte[] retrieveBytes(String filename) throws RemoteException {
-
-    	return null;
+    	List<byte[]> listeReconst = new ArrayList<byte[]>();
+        if (leftSlave != null) {
+        	listeReconst.addAll(leftSlave.subRetrieve(filename + leftSlave.getId()));
+        }
+        if (rightSlave != null) {
+        	listeReconst.addAll(rightSlave.subRetrieve(filename + rightSlave.getId()));
+        }
+        
+    	int totalBytes = 0;
+    	for (byte[] byteArray : listeReconst) {
+    		for (byte b : byteArray) {
+				totalBytes++;
+			}
+    	}
+    	byte[] tab = new byte[totalBytes];
+    	for (byte[] byteArray : listeReconst) {
+    		for (int i = 0; i < byteArray.length; i++) {
+				tab[i] = byteArray[i];
+			}
+    	}
+    	
+    	return tab;
     }
 }

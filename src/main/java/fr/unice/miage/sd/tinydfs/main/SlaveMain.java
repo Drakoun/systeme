@@ -129,15 +129,37 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
 
     @Override
     public List<byte[]> subRetrieve(String filename) throws RemoteException {
+    	List<byte[]> listeReconst = new ArrayList<byte[]>();
+    	
+    	Path path = Paths.get(getFile(fichiers, filename).getAbsolutePath());
+    	System.out.println(path);
+    	try {
+			byte[] contenu = Files.readAllBytes(path);
+			listeReconst.add(contenu);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 
-        return null;
+        if (leftSlave != null) {
+        	listeReconst.addAll(leftSlave.subRetrieve(filename + leftSlave.getId()));
+        }
+        if (rightSlave != null) {
+        	listeReconst.addAll(rightSlave.subRetrieve(filename + rightSlave.getId()));
+        }
+        return listeReconst;
     }
     
 	public static File getFile(List<File> fichiers, String filename) {
-
+		File fichier;
+		for (File f : fichiers) {
+			if (f.getName().equals(filename)) {
+				fichier = new File(filename);
+				return fichier;
+			}
+		}
 		return null;
 	}
-	
 	
 
 }
