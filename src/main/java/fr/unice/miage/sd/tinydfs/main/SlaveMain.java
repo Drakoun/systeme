@@ -85,9 +85,10 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     	/* Chaque Slave aura deux "tâches" à accomplir une fois qu'il aura reçu la liste du Master
     	 * ou de son Slave père :
     	 * 		#1	D'abord, il va enregistrer le premier élément de la liste.*/
-    	System.out.println("slave " + this.id + " subFileContent : " + subFileContent );
+    	
     	File fichier = new File(dfsRootFolder,filename + this.id);
     	fichiers.add(fichier);
+    	System.out.println("J'ai sauvagardé " + fichier.getName() + " sur mon disque.");
 		try {
 			
 			FileOutputStream fos = new FileOutputStream(fichier.getAbsolutePath());
@@ -102,25 +103,19 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
 		/* 		#2	Ensuite, il va diviser le reste des éléments en deux sous-listes et va les passer
 		 * 		à ses Slaves fils.*/
         
-		//List<byte[]> leftList = subFileContent.subList(1, subFileContent.size()/2 + 1);
-		System.out.println("slave " + this.id + " la moitié du size " +subFileContent.size()+ " du subFileContent est " + (int) Math.ceil((double)subFileContent.size()/2));
-
 		for (int i = 1; i < (int) Math.ceil((double)subFileContent.size()/2); i++) {
 			leftList.add(subFileContent.get(i));
 		}
 		
-        //List<byte[]> rightList = subFileContent.subList(subFileContent.size()/2 + 1, subFileContent.size());
 		for (int i = (int) (Math.ceil((double)subFileContent.size()/2)); i < subFileContent.size(); i++) {
 			rightList.add(subFileContent.get(i));
 		}
         
-		System.out.println("slave " + this.id + " et " + this.leftSlave);
 		if (leftSlave != null) {
         	leftSlave.subSave(filename, leftList);
         }
-		System.out.println("slave " + this.id + " et " + this.rightSlave);
+
         if (rightSlave != null) {
-        	System.out.println("slave " + this.id + " je suis dans la boucle droite");
         	rightSlave.subSave(filename, rightList);
         }
         

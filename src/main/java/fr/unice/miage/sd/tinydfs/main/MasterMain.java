@@ -48,14 +48,14 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
             registry.bind(storageServiceName, masterMain);
             
             // A retirer avant le rendu, executer par le code python
-            String[] param = new String[3];
-            param[0] = "localhost";
-            param[1] = ".";
-            System.out.println("Master : Création des " + nbSlaves + " slaves");
-            for (int i = 0; i < nbSlaves; i++) {
-                param[2] = i + "";
-                SlaveMain.main(param);
-	           }
+//            String[] param = new String[3];
+//            param[0] = "localhost";
+//            param[1] = ".";
+//            System.out.println("Master : Création des " + nbSlaves + " slaves");
+//            for (int i = 0; i < nbSlaves; i++) {
+//                param[2] = i + "";
+//                SlaveMain.main(param);
+//	           }
             
             System.out.println("Master : En attente des slaves");
             boolean slavePret = false;
@@ -97,11 +97,19 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
                 System.out.println("Master : Création de l'arbre binaire complet échoué. Le nombre de Slave ne permet pas de le faire.");
             }
             
-            File file = new File ("/Users/rimelamrani/Documents/JAVA/workspace/ProjetSys/systeme/src/test/resources/textual-sample");
-            
-            masterMain.saveFile(file);
-            System.out.println(file.getName());
-            masterMain.retrieveFile(file.getName());
+            //TESTS
+            File file = new File ("C:\\Users\\Dragos\\Workspace\\SysDis\\systeme\\src\\test\\resources\\textual-sample");
+	        File file1 = new File ("C:\\Users\\Dragos\\Workspace\\SysDis\\systeme\\src\\test\\resources\\binary-sample");
+	        masterMain.saveFile(file);
+	        Path path = Paths.get(file1.getAbsolutePath());
+	  		try {
+	  			byte[] contenu = Files.readAllBytes(path);
+	  			masterMain.saveBytes(file1.getName(), contenu);
+	  		} catch (IOException e) {
+	  			e.printStackTrace();
+	  		}
+          
+	  		masterMain.retrieveFile(file.getName());
            
     }
 
@@ -163,7 +171,6 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 			leftList.add(Arrays.copyOfRange(fileContent, start, end));
 			start += bytesParPart;
 		}
-		System.out.println("leftList : " + leftList);
 		
 		//Compléter la liste droite
 		start = fileContent.length/2;
@@ -172,11 +179,12 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 			rightList.add(Arrays.copyOfRange(fileContent,start, end));
 			start += bytesParPart;
 		}
-		System.out.println("rightList : " + rightList);
     	
 		//Affecter les deux listes aux slaves correspondants
     	leftSlave.subSave(filename, leftList);
     	rightSlave.subSave(filename, rightList);
+    	
+    	System.out.println("Sauvegarde réussie! Congrats");
     }
 
     @Override
