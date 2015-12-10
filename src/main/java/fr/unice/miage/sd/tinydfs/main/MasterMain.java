@@ -219,8 +219,8 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
     }
 
 	@Override
-	public float sizeOf(String filename) throws RemoteException {
-		float taille = 0;
+	public long sizeOf(String filename) throws RemoteException {
+		long taille = 0;
         if (leftSlave != null) {
         	taille += leftSlave.sizeOf(filename);
         }

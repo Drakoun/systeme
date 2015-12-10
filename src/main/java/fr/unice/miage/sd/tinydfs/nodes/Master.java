@@ -18,6 +18,6 @@ public interface Master extends Remote {
 	
 	public byte[] retrieveBytes(String filename) throws RemoteException;
 	
-	public float sizeOf(String filename) throws RemoteException;
+	public long sizeOf(String filename) throws RemoteException;
 
 }

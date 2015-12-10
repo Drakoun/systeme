@@ -90,7 +90,7 @@ public class ClientsTest {
 		File expectedFile = new File(this.getClass().getResource(
 				Constants.BINARY_SAMPLE_FILE_PATH).getFile());
 		Path path = Paths.get(this.getClass().getResource(
-				Constants.BINARY_SAMPLE_FILE_PATH).getFile());
+				Constants.BINARY_SAMPLE_FILE_PATH).getFile().substring(1));
 		BufferedOutputStream bos = null;
 		File retrievedFile = null;
 

@@ -86,7 +86,7 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     	
     	File fichier = new File(dfsRootFolder,filename + this.id);
     	fichiers.add(fichier);
-    	System.out.println(fichiers);
+    	System.out.println("J'ai sauvegardé " + fichier + " sur mon disque.");
 		try {
 			
 			FileOutputStream fos = new FileOutputStream(fichier.getAbsolutePath());
@@ -131,7 +131,7 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     	 * 		(ce fichier se trouve dans une liste de fichiers qu'il detient, avec tous les fichiers (parties) qu'il
     	 * 		a gardés sur son disque)
     	 */
-    	Path path = Paths.get(dfsRootFolder,getFile(fichiers, filename + this.id).toString());
+    	Path path = Paths.get(getFile(fichiers, filename + this.id).toString());
     	try {
 			byte[] contenu = Files.readAllBytes(path);
 			listeReconst.add(contenu);
@@ -153,11 +153,11 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     }
     
     //Méthode qui retourne un fichier spécifique d'une liste de fichiers.
-	public static File getFile(List<File> fichiers, String filename) {
+	public File getFile(List<File> fichiers, String filename) {
 		File fichier;
 		for (File f : fichiers) {
 			if (f.toString().endsWith(filename)) {
-				fichier = new File(filename);
+				fichier = new File(f.toString());
 				return fichier;
 			}
 		}
@@ -165,9 +165,9 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
 	}
 
 	@Override
-	public float sizeOf(String filename) throws RemoteException {
-		float taille = getFile(fichiers, filename + this.id).length();
-        if (leftSlave != null) {
+	public long sizeOf(String filename) throws RemoteException {
+		long taille = getFile(fichiers, filename + this.id).length();
+		if (leftSlave != null) {
         	taille += leftSlave.sizeOf(filename);
         }
         if (rightSlave != null) {

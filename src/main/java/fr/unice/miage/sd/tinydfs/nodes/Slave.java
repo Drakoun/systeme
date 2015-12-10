@@ -20,6 +20,6 @@ public interface Slave extends Remote {
 
 	public List<byte[]> subRetrieve(String filename) throws RemoteException;
 	
-	public float sizeOf(String filename) throws RemoteException;
+	public long sizeOf(String filename) throws RemoteException;
 
 }
