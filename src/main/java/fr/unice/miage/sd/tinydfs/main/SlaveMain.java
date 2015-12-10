@@ -84,8 +84,6 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     	 */
     	
     	File fichier = new File(dfsRootFolder,filename + this.id);
-    	fichiers.add(fichier);
-    	System.out.println("J'ai sauvegardé " + fichier + " sur mon disque.");
 		try {
 			
 			FileOutputStream fos = new FileOutputStream(fichier.getAbsolutePath());
@@ -96,7 +94,10 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
+                
+                fichiers.add(fichier);
+                System.out.println("J'ai sauvegardé " + fichier + " sur mon disque.");
+        
 		List<byte[]> leftList = new ArrayList<byte[]>();
         List<byte[]> rightList = new ArrayList<byte[]>();
 		/* 		#2	Ensuite, il va diviser le reste des éléments en deux sous-listes et va les passer
