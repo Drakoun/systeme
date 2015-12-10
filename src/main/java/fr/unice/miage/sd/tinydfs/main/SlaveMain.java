@@ -1,6 +1,5 @@
 package fr.unice.miage.sd.tinydfs.main;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -10,7 +9,6 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.rmi.AlreadyBoundException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -18,6 +16,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import fr.unice.miage.sd.tinydfs.nodes.Slave;
@@ -29,8 +28,6 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     String dfsRootFolder;
     private Slave leftSlave;
     private Slave rightSlave;
-    private List<byte[]> leftList = new ArrayList<byte[]>();
-    private List<byte[]> rightList = new ArrayList<byte[]>();
     private List<File> fichiers = new ArrayList<File>();
     
     // Usage: java fr.unice.miage.sd.tinydfs.main.SlaveMain master_host dfs_root_folder slave_identifier
@@ -84,11 +81,12 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     public void subSave(String filename, List<byte[]> subFileContent) throws RemoteException {
     	/* Chaque Slave aura deux "tâches" à accomplir une fois qu'il aura reçu la liste du Master
     	 * ou de son Slave père :
-    	 * 		#1	D'abord, il va enregistrer le premier élément de la liste.*/
+    	 * 		#1	D'abord, il va enregistrer le premier élément de la liste.
+    	 */
     	
     	File fichier = new File(dfsRootFolder,filename + this.id);
     	fichiers.add(fichier);
-    	System.out.println("J'ai sauvagardé " + fichier.getName() + " sur mon disque.");
+    	System.out.println(fichiers);
 		try {
 			
 			FileOutputStream fos = new FileOutputStream(fichier.getAbsolutePath());
@@ -100,8 +98,11 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
 			e.printStackTrace();
 		}
 
+		List<byte[]> leftList = new ArrayList<byte[]>();
+        List<byte[]> rightList = new ArrayList<byte[]>();
 		/* 		#2	Ensuite, il va diviser le reste des éléments en deux sous-listes et va les passer
-		 * 		à ses Slaves fils.*/
+		 * 		à ses Slaves fils.
+		 */
         
 		for (int i = 1; i < (int) Math.ceil((double)subFileContent.size()/2); i++) {
 			leftList.add(subFileContent.get(i));
@@ -125,9 +126,12 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
     @Override
     public List<byte[]> subRetrieve(String filename) throws RemoteException {
     	List<byte[]> listeReconst = new ArrayList<byte[]>();
-    	
-    	Path path = Paths.get(getFile(fichiers, filename + this.id).getAbsolutePath());
-    	//System.out.println(path);
+    	/* Chaque slave devra reconstituer la liste de tableaux de byte à partir des sous-listes des slaves fils gauche et droit.
+    	 * 		#1	D'abord, il rajoute le contenu de son propre fichier correspondant à la requête.
+    	 * 		(ce fichier se trouve dans une liste de fichiers qu'il detient, avec tous les fichiers (parties) qu'il
+    	 * 		a gardés sur son disque)
+    	 */
+    	Path path = Paths.get(dfsRootFolder,getFile(fichiers, filename + this.id).toString());
     	try {
 			byte[] contenu = Files.readAllBytes(path);
 			listeReconst.add(contenu);
@@ -136,6 +140,9 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
 		}
 		
 
+    	/*
+    	 * 		#2	Ensuite, il demande à ses fils gauche et droit de compléter la liste à reconstituer.
+    	 */
         if (leftSlave != null) {
         	listeReconst.addAll(leftSlave.subRetrieve(filename));
         }
@@ -145,15 +152,28 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
         return listeReconst;
     }
     
+    //Méthode qui retourne un fichier spécifique d'une liste de fichiers.
 	public static File getFile(List<File> fichiers, String filename) {
 		File fichier;
 		for (File f : fichiers) {
-			if (f.getName().equals(filename)) {
+			if (f.toString().endsWith(filename)) {
 				fichier = new File(filename);
 				return fichier;
 			}
 		}
 		return null;
+	}
+
+	@Override
+	public float sizeOf(String filename) throws RemoteException {
+		float taille = getFile(fichiers, filename + this.id).length();
+        if (leftSlave != null) {
+        	taille += leftSlave.sizeOf(filename);
+        }
+        if (rightSlave != null) {
+        	taille += rightSlave.sizeOf(filename);
+        }
+		return taille;
 	}
 	
 

@@ -17,6 +17,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import fr.unice.miage.sd.tinydfs.nodes.Master;
@@ -29,8 +30,6 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
     private int nbSlaves;
     private Slave leftSlave;
     private Slave rightSlave;
-    private List<byte[]> leftList = new ArrayList<byte[]>();
-    private List<byte[]> rightList = new ArrayList<byte[]>();
     
     // Usage: java fr.unice.miage.sd.tinydfs.main.MasterMain storage_service_name dfs_root_folder nb_slaves
     public static void main(String[] args) throws RemoteException,
@@ -96,20 +95,6 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
             else {
                 System.out.println("Master : Création de l'arbre binaire complet échoué. Le nombre de Slave ne permet pas de le faire.");
             }
-            
-            //TESTS
-            File file = new File ("C:\\Users\\Dragos\\Workspace\\SysDis\\systeme\\src\\test\\resources\\textual-sample");
-	        File file1 = new File ("C:\\Users\\Dragos\\Workspace\\SysDis\\systeme\\src\\test\\resources\\binary-sample");
-	        masterMain.saveFile(file);
-	        Path path = Paths.get(file1.getAbsolutePath());
-	  		try {
-	  			byte[] contenu = Files.readAllBytes(path);
-	  			masterMain.saveBytes(file1.getName(), contenu);
-	  		} catch (IOException e) {
-	  			e.printStackTrace();
-	  		}
-          
-	  		masterMain.retrieveFile(file.getName());
            
     }
 
@@ -151,35 +136,37 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 
     @Override
     public void saveBytes(String filename, byte[] fileContent) throws RemoteException {
+        List<byte[]> leftList = new ArrayList<byte[]>();
+        List<byte[]> rightList = new ArrayList<byte[]>();
     	/* Principe:
     	 * On crée deux listes de byte[] : une pour le leftSlave et une pour le rightSlave.
     	 * On divise le tableau fileContent en 'nbSlaves' sous-tableaux.
-    	 * La moitié des sous-tableaux sera affectée au leftSlave, l'autre moitié au rightSlave.*/
+    	 * La moitié des sous-tableaux sera affectée au leftSlave, l'autre moitié au rightSlave.
+    	 */
 
 		int start = 0;
-		int end;
 		
 		/* Définir la taille de base d'un sous-tableau 
 		 * La méthode Math.ceil permet de récuperer la valeur entière immédiate supérieure à un nb qui n'est pas entier
 		 * Cela permet une répartition plus équitable des bytes, si le nombre total de byte n'est pas divisible par le nbSlaves 
 		 */		
-		int bytesParPart = (int)Math.ceil((float)fileContent.length/nbSlaves);
+		int bytesParPart = (int)Math.ceil((double)fileContent.length/nbSlaves);
 		
 		//Compléter la liste gauche
 		while (start < fileContent.length/2) {
-			end = Math.min(fileContent.length/2, start + bytesParPart);
-			leftList.add(Arrays.copyOfRange(fileContent, start, end));
+			leftList.add(Arrays.copyOfRange(fileContent, start, start + bytesParPart));
 			start += bytesParPart;
 		}
-		
+
 		//Compléter la liste droite
-		start = fileContent.length/2;
-		while (start < fileContent.length) {	
-			end = Math.min(fileContent.length, start + bytesParPart);
-			rightList.add(Arrays.copyOfRange(fileContent,start, end));
+		while (start < fileContent.length-bytesParPart) {
+			rightList.add(Arrays.copyOfRange(fileContent,start, start + bytesParPart));
 			start += bytesParPart;
 		}
-    	
+		//le dernier tableau de la liste droite aura moins d'éléments que les autres
+		//si le nombre total de byte n'est pas divisible par le nbSlaves
+		rightList.add(Arrays.copyOfRange(fileContent,start, fileContent.length));
+
 		//Affecter les deux listes aux slaves correspondants
     	leftSlave.subSave(filename, leftList);
     	rightSlave.subSave(filename, rightList);
@@ -189,23 +176,26 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 
     @Override
     public File retrieveFile(String filename) throws RemoteException {
-	    try {
-		    FileOutputStream fileOuputStream = new FileOutputStream(filename, true); 
-			fileOuputStream.write(retrieveBytes(filename));
-			fileOuputStream.close();
-			File resultat = new File (filename);
-			return resultat;
+    	
+    	File fichier = new File(dfsRootFolder,filename);
+    	try {
+		    FileOutputStream fos = new FileOutputStream(fichier.getAbsoluteFile()); 
+			fos.write(retrieveBytes(filename));
+			fos.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-	    return null;
+	    return fichier;
         
     }
 
     @Override
     public byte[] retrieveBytes(String filename) throws RemoteException {
     	List<byte[]> listeReconst = new ArrayList<byte[]>();
+    	/* Lorsque le master reçoit une demande de 'retrieveBytes' :
+    	 * 		#1	Il va reconstituer la liste de tableaux de byte, à partir des deux sous-listes 
+    	 * 		qu'il aura demandées à ses slaves gauche et droit. 
+    	 */
         if (leftSlave != null) {
         	listeReconst.addAll(leftSlave.subRetrieve(filename));
         }
@@ -213,19 +203,30 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
         	listeReconst.addAll(rightSlave.subRetrieve(filename));
         }
         
+        /*
+         * 		#2	Il va convertir cette liste de tableaux en un seul tableau.
+         */
     	int totalBytes = 0;
     	for (byte[] byteArray : listeReconst) {
-    		for (byte b : byteArray) {
-				totalBytes++;
-			}
+    		totalBytes += byteArray.length;
     	}
     	byte[] tab = new byte[totalBytes];
-    	for (byte[] byteArray : listeReconst) {
-    		for (int i = 0; i < byteArray.length; i++) {
-				tab[i] = byteArray[i];
-			}
-    	}
+    	for (int i = 0; i < listeReconst.size(); i++) {
+    		System.arraycopy(listeReconst.get(i), 0, tab, i*listeReconst.get(i).length, listeReconst.get(i).length);
+		}
     	
     	return tab;
     }
+
+	@Override
+	public float sizeOf(String filename) throws RemoteException {
+		float taille = 0;
+        if (leftSlave != null) {
+        	taille += leftSlave.sizeOf(filename);
+        }
+        if (rightSlave != null) {
+        	taille += rightSlave.sizeOf(filename);
+        }
+		return taille;
+	}
 }

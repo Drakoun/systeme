@@ -19,5 +19,7 @@ public interface Slave extends Remote {
 	public void subSave(String filename, List<byte[]> subFileContent) throws RemoteException;
 
 	public List<byte[]> subRetrieve(String filename) throws RemoteException;
+	
+	public float sizeOf(String filename) throws RemoteException;
 
 }
