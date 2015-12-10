@@ -16,7 +16,6 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import fr.unice.miage.sd.tinydfs.nodes.Slave;
@@ -152,29 +151,27 @@ public class SlaveMain extends UnicastRemoteObject implements Slave, Serializabl
         return listeReconst;
     }
     
+    @Override
+    public long sizeOf(String filename) throws RemoteException {
+            long taille = getFile(fichiers, filename + this.id).length();
+            if (leftSlave != null) {
+                    taille += leftSlave.sizeOf(filename);
+            }
+            if (rightSlave != null) {
+                    taille += rightSlave.sizeOf(filename);
+            }
+            return taille;
+    }
+    
     //Méthode qui retourne un fichier spécifique d'une liste de fichiers.
-	public File getFile(List<File> fichiers, String filename) {
-		File fichier;
-		for (File f : fichiers) {
-			if (f.toString().endsWith(filename)) {
-				fichier = new File(f.toString());
-				return fichier;
-			}
-		}
-		return null;
-	}
-
-	@Override
-	public long sizeOf(String filename) throws RemoteException {
-		long taille = getFile(fichiers, filename + this.id).length();
-		if (leftSlave != null) {
-        	taille += leftSlave.sizeOf(filename);
-        }
-        if (rightSlave != null) {
-        	taille += rightSlave.sizeOf(filename);
-        }
-		return taille;
-	}
-	
-
+    public File getFile(List<File> fichiers, String filename) {
+            File fichier;
+            for (File f : fichiers) {
+                    if (f.toString().endsWith(filename)) {
+                            fichier = new File(f.toString());
+                            return fichier;
+                    }
+            }
+            return null;
+    }
 }

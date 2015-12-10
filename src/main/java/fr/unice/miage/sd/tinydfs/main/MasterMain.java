@@ -17,11 +17,12 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import fr.unice.miage.sd.tinydfs.nodes.Master;
 import fr.unice.miage.sd.tinydfs.nodes.Slave;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class MasterMain extends UnicastRemoteObject implements Master, Serializable {
@@ -30,6 +31,7 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
     private int nbSlaves;
     private Slave leftSlave;
     private Slave rightSlave;
+    private List<String> listeEnregistrementEnCours = new ArrayList<String>();
     
     // Usage: java fr.unice.miage.sd.tinydfs.main.MasterMain storage_service_name dfs_root_folder nb_slaves
     public static void main(String[] args) throws RemoteException,
@@ -46,56 +48,55 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
             MasterMain masterMain = new MasterMain(dfsRootFolder,nbSlaves);
             registry.bind(storageServiceName, masterMain);
             
-            // A retirer avant le rendu, executer par le code python
-//            String[] param = new String[3];
-//            param[0] = "localhost";
-//            param[1] = ".";
-//            System.out.println("Master : Création des " + nbSlaves + " slaves");
-//            for (int i = 0; i < nbSlaves; i++) {
-//                param[2] = i + "";
-//                SlaveMain.main(param);
-//	           }
-            
-            System.out.println("Master : En attente des slaves");
-            boolean slavePret = false;
-            while (!slavePret) {
-                Thread.sleep(2000);
-                slavePret = true;
-                for (int i = 2; i < nbSlaves+2; i++) {
-                    try {
-                        Slave slave = (Slave) Naming.lookup("rmi://localhost/" + "Slave" +i);
-                    }
-                    catch (NotBoundException ex) {
-                        slavePret = false;
-                        break;
-                    }
+            // On attend que tous les slaves se soient enregistrés avant de lancer la constuction de l'abre binaire
+            attendreSlaves(nbSlaves);
+            constructionArbreBinaireComplet(nbSlaves, masterMain);
+    }
+
+    private static void constructionArbreBinaireComplet(int nbSlaves, MasterMain masterMain) throws MalformedURLException, NotBoundException, RemoteException {
+        System.out.println("Master : Tous les slaves sont créés. Création de l'arbre binaire complet");
+        /* Verification que le nombre de Slaves permettent de créer un arbre binaire complet :
+         * Un arbre binaire est complet lorsque le nombre de Slaves + 2 est égale à une puissance de 2 
+         * Si c'est une puissance de 2, alors pour l'écriture en bytes de ce nombre il y a un seul bit 1 
+         * puis que des bits 0, en excluant le cas nbSlaves = 1 */
+        if (nbSlaves > 1 && (Long.bitCount(nbSlaves + 2) == 1)) {
+            masterMain.setLeftSlave((Slave) Naming.lookup("rmi://localhost/" + "Slave2"));
+            masterMain.setRightSlave((Slave) Naming.lookup("rmi://localhost/" + "Slave3"));
+            System.out.println("Master : fils gauche et fils droit attribués");
+            int i = 2;
+            // A partir d'un noeud i, l'identifiant du fils gauche est 2*i et celui du droit 2*i+1
+            while ((2 * i) <= nbSlaves) {
+                Slave filsGauche = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + (2*i));
+                Slave filsDroit = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + ((2*i) + 1));
+                Slave noeud = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + i);
+                noeud.setLeftSlave(filsGauche);
+                noeud.setRightSlave(filsDroit);
+                i++;
+            }
+            System.out.println("Master : Création de l'arbe binaire complet réussi.");
+        } else {
+            System.out.println("Master : Création de l'arbre binaire complet échoué. Le nombre de Slave ne permet pas de le faire.");
+        }
+    }
+    
+    private static void attendreSlaves(int nbSlaves) throws RemoteException, MalformedURLException, InterruptedException {
+        System.out.println("Master : En attente des slaves");
+        /* On vérifie que tous les slaves se soient enregistrés sur le RMI, 
+         * si il en manque, on attend 1 sec puis on recommence */
+        boolean slavePret = false;
+        while (!slavePret) {
+            Thread.sleep(1000);
+            slavePret = true;
+            for (int i = 2; i < nbSlaves + 2; i++) {
+                try {
+                    Slave slave = (Slave) Naming.lookup("rmi://localhost/" + "Slave" +i);
+                }
+                catch (NotBoundException ex) {
+                    slavePret = false;
+                    break;
                 }
             }
-            
-            System.out.println("Master : Tous les slaves sont créés. Création de l'arbre binaire complet");
-            // Verification puis creation de l'arbre binaire complet
-            if (nbSlaves > 1 && (Long.bitCount(nbSlaves+2) == 1)) {
-                //Slave gauche = (Slave) Naming.lookup("rmi://localhost/" + "Slave2");
-                masterMain.setLeftSlave((Slave) Naming.lookup("rmi://localhost/" + "Slave2"));
-                masterMain.setRightSlave((Slave) Naming.lookup("rmi://localhost/" + "Slave3"));
-                System.out.println("Master : fils gauche et fils droit attribués");
-                //System.out.println("Master : fils gauche : " + gauche.getId());
-                
-                int i = 2;
-                while ((2 * i) <= nbSlaves) {
-                    Slave filsGauche = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + (2*i));
-                    Slave filsDroit = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + ((2*i) + 1));
-                    Slave noeud = (Slave) Naming.lookup("rmi://localhost/" + "Slave" + i);
-                    noeud.setLeftSlave(filsGauche);
-                    noeud.setRightSlave(filsDroit);
-                    i++;
-                }
-                System.out.println("Master : Création de l'arbe binaire complet réussi.");
-            }
-            else {
-                System.out.println("Master : Création de l'arbre binaire complet échoué. Le nombre de Slave ne permet pas de le faire.");
-            }
-           
+        }
     }
 
     public MasterMain(String dfsRootFolder, int nbSlaves) throws RemoteException {
@@ -136,42 +137,57 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 
     @Override
     public void saveBytes(String filename, byte[] fileContent) throws RemoteException {
-        List<byte[]> leftList = new ArrayList<byte[]>();
-        List<byte[]> rightList = new ArrayList<byte[]>();
-    	/* Principe:
-    	 * On crée deux listes de byte[] : une pour le leftSlave et une pour le rightSlave.
-    	 * On divise le tableau fileContent en 'nbSlaves' sous-tableaux.
-    	 * La moitié des sous-tableaux sera affectée au leftSlave, l'autre moitié au rightSlave.
-    	 */
-
-		int start = 0;
-		
-		/* Définir la taille de base d'un sous-tableau 
-		 * La méthode Math.ceil permet de récuperer la valeur entière immédiate supérieure à un nb qui n'est pas entier
-		 * Cela permet une répartition plus équitable des bytes, si le nombre total de byte n'est pas divisible par le nbSlaves 
-		 */		
-		int bytesParPart = (int)Math.ceil((double)fileContent.length/nbSlaves);
-		
-		//Compléter la liste gauche
-		while (start < fileContent.length/2) {
-			leftList.add(Arrays.copyOfRange(fileContent, start, start + bytesParPart));
-			start += bytesParPart;
-		}
-
-		//Compléter la liste droite
-		while (start < fileContent.length-bytesParPart) {
-			rightList.add(Arrays.copyOfRange(fileContent,start, start + bytesParPart));
-			start += bytesParPart;
-		}
-		//le dernier tableau de la liste droite aura moins d'éléments que les autres
-		//si le nombre total de byte n'est pas divisible par le nbSlaves
-		rightList.add(Arrays.copyOfRange(fileContent,start, fileContent.length));
-
-		//Affecter les deux listes aux slaves correspondants
-    	leftSlave.subSave(filename, leftList);
-    	rightSlave.subSave(filename, rightList);
-    	
-    	System.out.println("Sauvegarde réussie! Congrats");
+        /* Création d'un nouveau thread pour que l'enregistrement ne soit pas bloquant pour le client
+         * et ajout du nom du fichier dans la liste des enregistrements en cours */
+        listeEnregistrementEnCours.add(filename);
+        final byte[] filecontent = fileContent;
+        final String fileName = filename;
+        ExecutorService thread = Executors.newFixedThreadPool(1);
+        thread.submit(new Runnable() {
+                            public void run() { 
+                                try {
+                                    List<byte[]> leftList = new ArrayList<byte[]>();
+                                    List<byte[]> rightList = new ArrayList<byte[]>();
+                                    /* Principe:
+                                    * On crée deux listes de byte[] : une pour le leftSlave et une pour le rightSlave.
+                                    * On divise le tableau fileContent en 'nbSlaves' sous-tableaux.
+                                    * La moitié des sous-tableaux sera affectée au leftSlave, l'autre moitié au rightSlave.
+                                    */
+                                    
+                                    int start = 0;
+                                    
+                                    /* Définir la taille de base d'un sous-tableau
+                                    * La méthode Math.ceil permet de récuperer la valeur entière immédiate supérieure à un nb qui n'est pas entier
+                                    * Cela permet une répartition plus équitable des bytes, si le nombre total de byte n'est pas divisible par le nbSlaves
+                                    */
+                                    int bytesParPart = (int)Math.ceil((double)filecontent.length/nbSlaves);
+                                    
+                                    //Compléter la liste gauche
+                                    while (start < filecontent.length/2) {
+                                        leftList.add(Arrays.copyOfRange(filecontent, start, start + bytesParPart));
+                                        start += bytesParPart;
+                                    }
+                                    
+                                    //Compléter la liste droite
+                                    while (start < filecontent.length-bytesParPart) {
+                                        rightList.add(Arrays.copyOfRange(filecontent,start, start + bytesParPart));
+                                        start += bytesParPart;
+                                    }
+                                    //le dernier tableau de la liste droite aura moins d'éléments que les autres
+                                    //si le nombre total de byte n'est pas divisible par le nbSlaves
+                                    rightList.add(Arrays.copyOfRange(filecontent,start, filecontent.length));
+                                    
+                                    //Affecter les deux listes aux slaves correspondants
+                                    leftSlave.subSave(fileName, leftList);
+                                    rightSlave.subSave(fileName, rightList);
+                                    listeEnregistrementEnCours.remove(fileName);
+                                    System.out.println("Sauvegarde réussie! Congrats");
+                                } catch (RemoteException ex) {
+                                    ex.printStackTrace();
+                                }
+                            }
+                    });
+        
     }
 
     @Override
@@ -191,6 +207,14 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
 
     @Override
     public byte[] retrieveBytes(String filename) throws RemoteException {
+        // Si ce fichier est en cours d'enregistrement, alors on attend
+        while (listeEnregistrementEnCours.contains(filename)) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }
     	List<byte[]> listeReconst = new ArrayList<byte[]>();
     	/* Lorsque le master reçoit une demande de 'retrieveBytes' :
     	 * 		#1	Il va reconstituer la liste de tableaux de byte, à partir des deux sous-listes 
@@ -214,7 +238,7 @@ public class MasterMain extends UnicastRemoteObject implements Master, Serializa
     	for (int i = 0; i < listeReconst.size(); i++) {
     		System.arraycopy(listeReconst.get(i), 0, tab, i*listeReconst.get(i).length, listeReconst.get(i).length);
 		}
-    	
+    	System.out.println("Récupération du fichier réussie");
     	return tab;
     }
 
